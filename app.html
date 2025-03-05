@@ -5,83 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FastAPI WebSocket Chat</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            height: 100vh; 
-            margin: 0; 
-            background-color: #f4f4f4;
-        }
-        #messages { 
-            border: 1px solid #ccc; 
-            padding: 10px; 
-            flex-grow: 1;
-            width: 80%; 
-            overflow-y: auto; 
-            display: flex;
-            flex-direction: column;
-            background: white;
-        }
-        .user { 
-            color: blue; 
-            align-self: flex-end; 
-            background: #d0e8ff;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px;
-            max-width: 60%;
-        }
-        .bot, .server-notification { 
-            color: green; 
-            align-self: flex-start; 
-            background: #d4f7dc;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 5px;
-            max-width: 60%;
-            text-shadow: 0 0 5px rgba(0, 255, 0, 0.8);
-        }
-        #input-container {
-            display: flex;
-            width: 80%;
-            padding: 10px;
-            background: white;
-            border-top: 1px solid #ccc;
-            align-items: center;
-        }
-        #messageInput {
-            flex-grow: 1;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 30px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        #messageInput:focus {
-            border-color: #007bff;
-        }
-        button {
-            padding: 15px;
-            margin-left: 10px;
-            border: none;
-            background: #007bff;
-            color: white;
-            border-radius: 30px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        button:active {
-            background: #004080;
-        }
-        #messageInput::placeholder {
-            color: #888;
-        }
+        body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; margin: 0; background-color: #f4f4f4; }
+        #messages { border: 1px solid #ccc; padding: 10px; flex-grow: 1; width: 80%; overflow-y: auto; display: flex; flex-direction: column; background: white; }
+        .user, .bot, .server-notification { padding: 10px; border-radius: 5px; margin: 5px; max-width: 60%; position: relative; }
+        .user { color: blue; align-self: flex-end; background: #d0e8ff; }
+        .bot, .server-notification { color: green; align-self: flex-start; background: #d4f7dc; }
+        .timestamp { font-size: 12px; color: gray; position: absolute; bottom: -15px; right: 5px; }
+        #input-container { display: flex; width: 80%; padding: 15px; background: white; border-top: 1px solid #ccc; align-items: center; }
+        #messageInput { flex-grow: 1; padding: 20px; border: 1px solid #ccc; border-radius: 30px; font-size: 18px; outline: none; }
+        button { padding: 15px; margin-left: 10px; border: none; background: #007bff; color: white; border-radius: 30px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        #checkbox-container { display: flex; flex-direction: column; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -91,51 +25,75 @@
         <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
         <button onclick="sendMessage()">Send</button>
     </div>
-    
-    
+
     <script>
         const ws = new WebSocket("ws://localhost:8000/ws");
 
-        ws.onopen = () => {
-            console.log("Connected to WebSocket server");
-        };
-
         ws.onmessage = (event) => {
             const messagesDiv = document.getElementById("messages");
-            const message = document.createElement("p");
-            const data = JSON.parse(event.data);
-            if (data.reply) {
-                message.textContent = `Bot: ${data.reply}`;
-                message.classList.add("bot");
-            } else {
-                message.textContent = `Server Notification: ${JSON.stringify(data)}`;
-                message.classList.add("server-notification");
-            }
+            const message = document.createElement("div");
+            message.classList.add("server-notification");
+            message.innerHTML = `
+                <p>每日助手通知:</p>
+                <p>HI, HanyuanChang 早安，今天又是美好的一天，有以下事項通知您:</p>
+                <p>[表單庶務]:</p>
+                <p>1. 您的 VPN/RCS 即將到期，請問是否要幫您延續申請呢？</p>
+                <p>2. 由於您 3/20 號申請黃金週，AI 偵測到您的 Flower 表單有 2 張須於 4 月 21 號前完成，請問是否要協助您處理？</p>
+                <p>[會議庶務]:</p>
+                <p>1. 您昨日 {會議: SAP ERP , 時間: 2:00~5:00} 的 Teams 會議紀錄已自動幫您摘要發送至與會者信箱。</p>
+                <p>[ERP通知]:</p>
+                <p>1. 由於 Jack 延後開發時辰，AI 自動修改 Jira issue tracking。</p>
+                <p>如果庶務需要 AI 一次處理，請勾選後按送出：</p>
+                <div id="checkbox-container">
+                    <label><input type="checkbox" value="VPN/RCS 續約"> VPN/RCS 續約</label>
+                    <label><input type="checkbox" value="Flower 表單提醒"> Flower 表單提醒</label>
+                    <label><input type="checkbox" value="SAP ERP 會議摘要"> SAP ERP 會議摘要</label>
+                    <label><input type="checkbox" value="Jira issue tracking 更新"> Jira issue tracking 更新</label>
+                </div>
+                <button onclick="confirmSelections()">送出選擇</button>
+                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+            `;
             messagesDiv.appendChild(message);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         };
 
+        function confirmSelections() {
+            const selectedOptions = Array.from(document.querySelectorAll('#checkbox-container input:checked'))
+                .map(input => input.value);
+            if (selectedOptions.length > 0) {
+                const confirmation = confirm("確認要送出申請嗎？");
+                if (confirmation) {
+                    ws.send(JSON.stringify({ selected: selectedOptions }));
+                    alert("訊息已送出！AI 開始處理: " + selectedOptions.join(", "));
+                } else {
+                    ws.onmessage({ data: "每日通知" });
+                }
+            }
+        }
+
         function sendMessage() {
             const input = document.getElementById("messageInput");
-            const message = input.value;
+            const message = input.value.trim();
             if (message) {
-                // Echo message immediately on UI
                 const messagesDiv = document.getElementById("messages");
-                const userMessage = document.createElement("p");
-                userMessage.textContent = `You: ${message}`;
+
+                // Immediately echo the user’s message
+                const userMessage = document.createElement("div");
                 userMessage.classList.add("user");
+                userMessage.innerHTML = `<p>You: ${message}</p><div class='timestamp'>${new Date().toLocaleTimeString()}</div>`;
                 messagesDiv.appendChild(userMessage);
-                
-                // Simulate chatbot echo immediately
-                const botMessage = document.createElement("p");
-                botMessage.textContent = `Bot: ${message}`;
+
+                // Directly echo the same message as the bot response
+                const botMessage = document.createElement("div");
                 botMessage.classList.add("bot");
+                botMessage.innerHTML = `<p>Bot: ${message}</p><div class='timestamp'>${new Date().toLocaleTimeString()}</div>`;
                 messagesDiv.appendChild(botMessage);
-                
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                
-                ws.send(message);
+
+                // Clear the input box
                 input.value = "";
+
+                // Scroll to the bottom
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
         }
 
